@@ -42,6 +42,17 @@ def load_website(url_link, parse_elements):
     )
     return loader.load()
 
+def split_documents_into_chunks(docs, chunk_size=1000, chunk_overlap=200):
+
+    text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=chunk_size,  # chunk size (characters)
+    chunk_overlap=chunk_overlap,  # chunk overlap (characters)
+    add_start_index=True  # track index in original document
+    )
+    all_splits = text_splitter.split_documents(docs)
+    print(f"Split blog post into {len(all_splits)} sub-documents.")
+    return all_splits
+
 # Decomposition
 template = """You are a helpful assistant that generates multiple sub-questions related to an input question. \n
 The goal is to break down the input into a set of sub-problems / sub-questions that can be answers in isolation. \n
@@ -52,13 +63,7 @@ prompt_decomposition = ChatPromptTemplate.from_template(template)
 # user agent for web_base_loader
 docs = load_website(url_link, parse_elements)
 
-text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=1000,  # chunk size (characters)
-    chunk_overlap=200,  # chunk overlap (characters)
-    add_start_index=True,  # track index in original document
-)
-all_splits = text_splitter.split_documents(docs)
-print(f"Split blog post into {len(all_splits)} sub-documents.")
+splits = split_documents_into_chunks(docs)
 
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
 vectorstore = Chroma.from_documents(documents=all_splits, 
