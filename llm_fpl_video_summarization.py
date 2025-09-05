@@ -3,13 +3,11 @@ from langsmith.wrappers import wrap_anthropic
 import anthropic
 import yt_dlp
 import whisper
-import requests
 import os
 import getpass
 
 LANGSMITH_ENDPOINT='https://api.smith.langchain.com'
 LANGSMITH_PROJECT='fpl_summary'
-
 
 def download_audio(youtube_url, output_path='audio'):
     ydl_opts = {
@@ -40,7 +38,7 @@ video_id = 'PcV5y_0IXzI'
 API_URL = "https://api.anthropic.com/v1/messages"
 download_audio(f"https://www.youtube.com/watch?v={video_id}")
 text = transcribe_audio('audio.mp3')
-print(text)
+#print(text)
 
 client = wrap_anthropic(anthropic.Anthropic())
 
@@ -53,28 +51,6 @@ def pipeline(user_input: str) -> str:
         max_tokens=700
     )
     return response.content
-
-'''
-@traceable
-def summarize_with_claude(text):
-    headers = {
-        "x-api-key": API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "model": "claude-3-5-sonnet-latest",  # Use your preferred Claude 3 model
-        "max_tokens": 700,
-        "system": "You are expert in premier league podcast.",
-        "messages": [
-            {"role": "user", "content": f"Summarize the following text:\n{text}"}
-        ]
-    }
-    response = requests.post(API_URL, headers=headers, json=data)
-    response.raise_for_status()
-    result = response.json()
-    return result["content"][0]["text"]
-'''
 
 if __name__ == "__main__":
     input_text = text
