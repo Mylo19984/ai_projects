@@ -20,7 +20,8 @@ if not os.environ.get("ANTHROPIC_API_KEY"):
 promt_question = 'What is chain of thought?'
 url_link = 'https://lilianweng.github.io/posts/2023-06-23-agent/'
 parse_elements =  ["post-content", "post-title", "post-header"]
-use_question_decomposition = True
+use_question_decomposition = False
+use_question_dec = True
 
 
 def retriever_similarity(vectorstore, query: str) -> List[Document]:
@@ -64,7 +65,7 @@ def create_vectorstore_from_doc_splits(splits, model_name):
                                         embedding=embeddings)
     return vectorstore
 
-def create_retriver_from_doc_splits(vectorstore, splits, model_name, search_type, no_search_kwargs):
+def create_retriver_from_doc_splits(vectorstore, search_type, no_search_kwargs):
     
     retriever = vectorstore.as_retriever(search_type=search_type, search_kwargs={"k":no_search_kwargs})
     return retriever
@@ -87,7 +88,7 @@ no_k = 3
 
 vectorstore = create_vectorstore_from_doc_splits(splits, model_name)
 
-retriever = create_retriver_from_doc_splits(vectorstore, splits, model_name, search_type, no_k)
+retriever = create_retriver_from_doc_splits(vectorstore, search_type, no_k)
 
 print('NEW sorted similarity overview ---------')
 docs_sim = retriever_similarity(vectorstore, promt_question)
@@ -111,6 +112,22 @@ result = rag_chain.invoke(promt_question)
 print('output ---------')
 print(result)
 
+## HyDE
+
+if use_question_dec:
+    print('Using question decomposition')
+    rag_chain_dec = prompt | llm | StrOutputParser()
+    #result_dec = rag_chain_dec.invoke({promt_question})
+    result_dec = rag_chain_dec.invoke({
+        "context": "you are expert in GenAI and LLM",
+        "question": promt_question
+    })
+    print('output HyDE raw answer ---------')
+    print(result_dec)
+else:
+    print('Not using question decomposition')
+
+
 template = """Here is the question you need to answer:
 \n --- \n {question} \n --- \n
 Here is any available background question + answer pairs:
@@ -129,19 +146,22 @@ def format_qa_pair(question, answer):
     formatted_string += f"Question: {question}\nAnswer: {answer}\n\n"
     return formatted_string.strip()
 
-q_a_pairs = ""
-for q in questions:
-    rag_chain_decomp = (
-    {"context": itemgetter("question") | retriever, 
-     "question": itemgetter("question"),
-     "q_a_pairs": itemgetter("q_a_pairs")} 
-    | decomposition_prompt
-    | llm
-    | StrOutputParser())
+if use_question_decomposition:
+    print('Using question decomposition for RAG')
 
-    answer = rag_chain_decomp.invoke({"question":q,"q_a_pairs":q_a_pairs})
-    q_a_pair = format_qa_pair(q,answer)
-    q_a_pairs = q_a_pairs + "\n---\n"+  q_a_pair
+    q_a_pairs = ""
+    for q in questions:
+        rag_chain_decomp = (
+        {"context": itemgetter("question") | retriever, 
+        "question": itemgetter("question"),
+        "q_a_pairs": itemgetter("q_a_pairs")} 
+        | decomposition_prompt
+        | llm
+        | StrOutputParser())
 
-print('output decomposition ---------')
-print(answer)
+        answer = rag_chain_decomp.invoke({"question":q,"q_a_pairs":q_a_pairs})
+        q_a_pair = format_qa_pair(q,answer)
+        q_a_pairs = q_a_pairs + "\n---\n"+  q_a_pair
+
+    print('output decomposition ---------')
+    print(answer)
